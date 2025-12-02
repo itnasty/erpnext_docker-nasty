@@ -1,0 +1,37 @@
+# ============================================
+# Docker Compose Override - Custom Frappe Image
+# ============================================
+# Build image manually first:
+#   docker build -t custom-frappe:v15 -f images/custom-apps.Dockerfile --build-arg GITHUB_TOKEN=your_token .
+# ============================================
+
+x-image: &custom-image
+  image: custom-frappe:v15
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: images/custom-apps.Dockerfile
+      args:
+        FRAPPE_VERSION: ${FRAPPE_VERSION:-v15}
+        GITHUB_TOKEN: ${GITHUB_TOKEN}
+    image: custom-frappe:v15    # <-- Name the built image
+    volumes:
+      - ./scripts:/home/frappe/scripts:ro
+      - ./backup:/home/frappe/backup:ro
+
+  frontend:
+    <<: *custom-image
+
+  queue-short:
+    <<: *custom-image
+
+  queue-long:
+    <<: *custom-image
+
+  scheduler:
+    <<: *custom-image
+
+  websocket:
+    <<: *custom-image

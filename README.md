@@ -1,93 +1,296 @@
-[![Build Stable](https://github.com/frappe/frappe_docker/actions/workflows/build_stable.yml/badge.svg)](https://github.com/frappe/frappe_docker/actions/workflows/build_stable.yml)
-[![Build Develop](https://github.com/frappe/frappe_docker/actions/workflows/build_develop.yml/badge.svg)](https://github.com/frappe/frappe_docker/actions/workflows/build_develop.yml)
+# Frappe Docker Deployment
 
-Everything about [Frappe](https://github.com/frappe/frappe) and [ERPNext](https://github.com/frappe/erpnext) in containers.
+Custom Frappe/ERPNext Docker deployment with HRMS, Insights, S3 Attachments, and NSTY apps.
 
-# Getting Started
+## 📁 Folder Structure
 
-**New to Frappe Docker?** Read the [Getting Started Guide](docs/getting-started.md) for a comprehensive overview of repository structure, development workflow, custom apps, Docker concepts, and quick start examples.
-
-To get started you need [Docker](https://docs.docker.com/get-docker/), [docker-compose](https://docs.docker.com/compose/), and [git](https://docs.github.com/en/get-started/getting-started-with-git/set-up-git) setup on your machine. For Docker basics and best practices refer to Docker's [documentation](http://docs.docker.com).
-
-Once completed, chose one of the following two sections for next steps.
-
-### Try in Play With Docker
-
-To play in an already set up sandbox, in your browser, click the button below:
-
-<a href="https://labs.play-with-docker.com/?stack=https://raw.githubusercontent.com/frappe/frappe_docker/main/pwd.yml">
-  <img src="https://raw.githubusercontent.com/play-with-docker/stacks/master/assets/images/button.png" alt="Try in PWD"/>
-</a>
-
-### Try on your Dev environment
-
-First clone the repo:
-
-```sh
-git clone https://github.com/frappe/frappe_docker
-cd frappe_docker
+```
+frappe_docker/
+├── backup/                     # Backup files (gitignored)
+├── config/
+│   └── apps.json               # Apps configuration
+├── images/
+│   └── custom-apps.Dockerfile  # Custom Docker image
+├── scripts/
+│   ├── dc.sh                   # Docker-compose wrapper script
+│   ├── post-install.sh         # App installation script
+│   └── restore-site.sh         # Backup restore script
+├── sites/                      # Frappe sites (auto-generated)
+├── pwd.yml                     # Main compose file (from frappe_docker)
+├── docker-compose.override.yml # Custom image overrides
+├── .env                        # Environment variables (gitignored)
+├── .env.example                # Environment template
+├── .gitignore                  # Git ignore rules
+└── README.md                   # This file
 ```
 
-Then run: `docker compose -f pwd.yml up -d`
+## 🚀 Quick Start
 
-### To run on ARM64 architecture follow this instructions
+### 1. Setup Environment
 
-After you clone the repo and `cd frappe_docker`, run this command to build multi-architecture images specifically for ARM64.
+```bash
+# Copy environment template
+cp .env.example .env
 
-`docker buildx bake --no-cache --set "*.platform=linux/arm64"`
+# Edit with your values
+nano .env
+```
 
-and then
+**Required `.env` values to modify:**
 
-- add `platform: linux/arm64` to all services in the `pwd.yml`
-- replace the current specified versions of erpnext image on `pwd.yml` with `:latest`
+```env
+# GitHub token for private repos (generate at https://github.com/settings/tokens)
+GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
-Then run: `docker compose -f pwd.yml up -d`
+# ERPNext admin password
+ADMIN_PASSWORD=your_secure_password
 
-## Final steps
+# MariaDB root password
+DB_ROOT_PASSWORD=your_secure_password
 
-Wait for 5 minutes for ERPNext site to be created or check `create-site` container logs before opening browser on port 8080. (username: `Administrator`, password: `admin`)
+# S3 credentials (if using S3 attachments)
+S3_ACCESS_KEY=your_access_key
+S3_SECRET_KEY=your_secret_key
+S3_BUCKET=your_bucket_name
+```
 
-If you ran in a Dev Docker environment, to view container logs: `docker compose -f pwd.yml logs -f create-site`. Don't worry about some of the initial error messages, some services take a while to become ready, and then they go away.
+### 2. Build Custom Image
 
-# Documentation
+```bash
+# Build using values from .env file
+source .env && docker build -t custom-frappe:v15 \
+  -f images/custom-apps.Dockerfile \
+  --build-arg GITHUB_TOKEN=$GITHUB_TOKEN \
+  --build-arg FRAPPE_VERSION=$FRAPPE_VERSION .
 
-### [Getting Started Guide](docs/getting-started.md)
+# Or use docker-compose to build (also reads from .env)
+./scripts/dc.sh build backend
+```
 
-### [Frequently Asked Questions](https://github.com/frappe/frappe_docker/wiki/Frequently-Asked-Questions)
+### 3. Start Services
 
-### [Production](#production)
+```bash
+# Using the wrapper script (recommended)
+./scripts/dc.sh up -d
 
-- [List of containers](docs/container-setup/01-overview.md)
-- [Single Compose Setup](docs/single-compose-setup.md)
-- [Environment Variables](docs/container-setup/env-variables.md)
-- [Single Server Example](docs/single-server-example.md)
-- [Setup Options](docs/setup-options.md)
-- [Site Operations](docs/site-operations.md)
-- [Backup and Push Cron Job](docs/backup-and-push-cronjob.md)
-- [Port Based Multi Tenancy](docs/port-based-multi-tenancy.md)
-- [Migrate from multi-image setup](docs/migrate-from-multi-image-setup.md)
-- [running on linux/mac](docs/setup_for_linux_mac.md)
-- [TLS for local deployment](docs/tls-for-local-deployment.md)
+# Or manually with both compose files
+docker-compose -f pwd.yml -f docker-compose.override.yml up -d
+```
 
-### [Custom Images](#custom-images)
+### 4. Install Apps to Site
 
-- [Custom Apps](docs/container-setup/02-build-setup.md)
-- [Build Version 10 Images](docs/build-version-10-images.md)
+```bash
+# Run post-install script
+./scripts/dc.sh exec backend bash //home/frappe/scripts/post-install.sh
 
-### [Development](#development)
+# Or with docker exec (use // prefix on Windows Git Bash)
+docker exec -it frappe_docker-backend-1 bash //home/frappe/scripts/post-install.sh
+```
 
-- [Development using containers](docs/development.md)
-- [Bench Console and VSCode Debugger](docs/bench-console-and-vscode-debugger.md)
-- [Connect to localhost services](docs/connect-to-localhost-services-from-containers-for-local-app-development.md)
+> **Note (Windows Git Bash):** Use `//home/...` (double slash) to prevent Git Bash from converting Linux paths to Windows paths.
 
-### [Troubleshoot](docs/troubleshoot.md)
+### 5. Restore from Backup (Optional)
 
-# Contributing
+1. Place backup files in `./backup/` folder:
+   - `*-database.sql.gz` (required)
+   - `*-files.tar` (optional - public files)
+   - `*-private-files.tar` (optional - private files)
 
-If you want to contribute to this repo refer to [CONTRIBUTING.md](CONTRIBUTING.md)
+2. Run restore script:
 
-This repository is only for container related stuff. You also might want to contribute to:
+```bash
+# ⚠️ IMPORTANT: Set DB_ROOT_PASSWORD (must match MariaDB root password in pwd.yml)
+./scripts/dc.sh exec -e DB_ROOT_PASSWORD=<your_db_root_password> backend bash //home/frappe/scripts/restore-site.sh
+```
 
-- [Frappe framework](https://github.com/frappe/frappe#contributing),
-- [ERPNext](https://github.com/frappe/erpnext#contributing),
-- [Frappe Bench](https://github.com/frappe/bench).
+> **Note:** The restore script will:
+> 1. Restore the database from backup
+> 2. Verify the restore was successful
+> 3. Run migrations to update to current app versions
+> 4. Clear cache
+>
+> If the backup already contains your apps (hrms, insights, etc.), you don't need to run the post-install script.
+
+## 📦 Installed Apps
+
+| App | Branch | Description |
+|-----|--------|-------------|
+| HRMS | version-15 | Human Resource Management |
+| Insights | version-3 | Data Analytics & Reporting |
+| S3 Attachments | main | AWS S3 File Storage |
+| NSTY | develop | Custom Application |
+
+## 🔧 Common Commands
+
+### Using the Wrapper Script (Recommended)
+
+The `scripts/dc.sh` script wraps docker-compose with both yml files:
+
+```bash
+# Start all services
+./scripts/dc.sh up -d
+
+# Stop all services
+./scripts/dc.sh down
+
+# List containers
+./scripts/dc.sh ps
+
+# View logs
+./scripts/dc.sh logs -f backend
+
+# Follow all logs
+./scripts/dc.sh logs -f
+
+# Rebuild and start
+./scripts/dc.sh up -d --build
+
+# Restart services
+./scripts/dc.sh restart
+
+# Shell access (frappe user)
+./scripts/dc.sh exec backend bash
+
+# Shell access (root user)
+./scripts/dc.sh exec -u root backend bash
+```
+
+### Direct Docker Commands
+
+```bash
+# If not using the wrapper script
+docker-compose -f pwd.yml -f docker-compose.override.yml up -d
+docker-compose -f pwd.yml -f docker-compose.override.yml down
+docker-compose -f pwd.yml -f docker-compose.override.yml ps
+```
+
+### Bench Commands
+
+```bash
+# List installed apps
+bench --site frontend list-apps
+
+# Install an app
+bench --site frontend install-app <app_name>
+
+# Run migrations
+bench --site frontend migrate
+
+# Clear cache
+bench --site frontend clear-cache
+
+# Create new site
+bench new-site <site_name> --admin-password <password>
+
+# Backup site
+bench --site frontend backup --with-files
+
+# Get new app
+bench get-app <repo_url> --branch <branch>
+```
+
+## 🔄 Backup & Restore
+
+### Manual Backup
+
+```bash
+docker exec -it frappe_docker-backend-1 bench --site frontend backup --with-files
+```
+
+### Restore from Backup
+
+1. Place backup files in `./backup/` folder:
+   - `*-database.sql.gz` (required)
+   - `*-files.tar` (optional)
+   - `*-private-files.tar` (optional)
+
+2. Run restore script:
+```bash
+# ⚠️ Set DB_ROOT_PASSWORD (must match MariaDB root password in pwd.yml)
+./scripts/dc.sh exec -e DB_ROOT_PASSWORD=<your_db_root_password> backend bash //home/frappe/scripts/restore-site.sh
+```
+
+> **Important:** The script verifies the restore completed before running migrations. If verification fails, it will stop and you can retry. Migrations can take several minutes for large databases.
+
+### Windows: Copy Backups to Container
+
+```powershell
+docker cp "C:\path\to\backup\database.sql.gz" frappe_docker-backend-1:/home/frappe/backup/
+docker cp "C:\path\to\backup\files.tar" frappe_docker-backend-1:/home/frappe/backup/
+docker cp "C:\path\to\backup\private-files.tar" frappe_docker-backend-1:/home/frappe/backup/
+```
+
+## 🛠️ Troubleshooting
+
+### pkg-config / Build Issues
+
+```bash
+docker exec -u root frappe_docker-backend-1 apt-get update
+docker exec -u root frappe_docker-backend-1 apt-get install -y \
+    gcc build-essential python3-dev libmariadb-dev-compat libmariadb-dev pkg-config
+```
+
+### Module Not Found
+
+```bash
+docker exec -it frappe_docker-backend-1 pip install -e /home/frappe/frappe-bench/apps/<app_name>
+```
+
+### Permission Issues
+
+```bash
+docker exec -u root frappe_docker-backend-1 chown -R frappe:frappe /home/frappe/frappe-bench
+```
+
+### Site Not Loading
+
+```bash
+# Check site status
+bench --site frontend doctor
+
+# Rebuild assets
+bench build --production
+
+# Restart services
+./scripts/dc.sh restart
+```
+
+## ⚙️ S3 Attachment Configuration
+
+After installing `frappe_s3_attachment`, configure in `site_config.json`:
+
+```json
+{
+  "s3_bucket": "your-bucket-name",
+  "s3_access_key": "your-access-key",
+  "s3_secret_key": "your-secret-key",
+  "s3_region": "ap-southeast-1"
+}
+```
+
+Or via bench:
+
+```bash
+bench --site frontend set-config s3_bucket "your-bucket-name"
+bench --site frontend set-config s3_access_key "your-access-key"
+bench --site frontend set-config s3_secret_key "your-secret-key"
+bench --site frontend set-config s3_region "ap-southeast-1"
+```
+
+## 📝 Notes
+
+- **First-time setup** requires manual site creation with admin password
+- **Backup restore** should be manually triggered (safety measure)
+- **Major version upgrades** should be tested in staging first
+- **Private repos** require SSH keys or access tokens
+
+## 📚 Resources
+
+- [Frappe Framework Docs](https://frappeframework.com/docs)
+- [ERPNext Docs](https://docs.erpnext.com/)
+- [Frappe Docker Repo](https://github.com/frappe/frappe_docker)
+- [HRMS Docs](https://frappehr.com/docs)
+
+## 📄 License
+
+See individual app repositories for their respective licenses.
