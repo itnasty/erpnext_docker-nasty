@@ -20,6 +20,7 @@ frappe_docker/
 ├── docker-compose.override.yml # Custom image overrides
 ├── .env                        # Environment variables (gitignored)
 ├── .env.example                # Environment template
+├── .gitattributes              # Line ending normalization
 ├── .gitignore                  # Git ignore rules
 └── README.md                   # This file
 ```
@@ -221,6 +222,22 @@ docker cp "C:\path\to\backup\private-files.tar" frappe_docker-backend-1:/home/fr
 ```
 
 ## 🛠️ Troubleshooting
+
+### Windows Line Ending Errors (`$'\r': command not found`)
+
+If you see errors like `$'\r': command not found` or `syntax error near unexpected token '$'do\r''` when running scripts, the shell scripts have Windows (CRLF) line endings instead of Unix (LF).
+
+**Fix:**
+```bash
+# Delete and re-checkout the scripts to get correct line endings
+rm scripts/*.sh
+git checkout -- scripts/
+```
+
+Or convert manually using dos2unix inside the container:
+```bash
+./scripts/dc.sh exec -u root backend bash -c "apt-get update && apt-get install -y dos2unix && dos2unix /home/frappe/scripts/*.sh"
+```
 
 ### pkg-config / Build Issues
 
