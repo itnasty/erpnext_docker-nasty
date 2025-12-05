@@ -94,6 +94,7 @@ docker exec -it frappe_docker-backend-1 bash //home/frappe/scripts/post-install.
 
 1. Place backup files in `./backup/` folder:
    - `*-database.sql.gz` (required)
+   - `*-site_config_backup.json` (optional - site configuration)
    - `*-files.tar` (optional - public files)
    - `*-private-files.tar` (optional - private files)
 
@@ -202,8 +203,9 @@ docker exec -it frappe_docker-backend-1 bench --site frontend backup --with-file
 
 1. Place backup files in `./backup/` folder:
    - `*-database.sql.gz` (required)
-   - `*-files.tar` (optional)
-   - `*-private-files.tar` (optional)
+   - `*-site_config_backup.json` (optional - site configuration)
+   - `*-files.tar` (optional - public files)
+   - `*-private-files.tar` (optional - private files)
 
 2. Run restore script:
 ```bash
